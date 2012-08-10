@@ -111,6 +111,9 @@ void CDecalRData::RenderDecals(std::vector<CDecalRData*>& decals, const CShaderD
 			{
 				techBase->BeginPass(pass);
 				TerrainRenderer::PrepareShader(techBase->GetShader(), shadow);
+				
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			}
 			
 			const CShaderProgramPtr& shader = isDummyShader ? dummy : techBase->GetShader(pass);
@@ -173,8 +176,12 @@ void CDecalRData::RenderDecals(std::vector<CDecalRData*>& decals, const CShaderD
 
 				CVertexBuffer::Unbind();
 			}
+			
 			if (!isDummyShader)
+			{
+				glDisable(GL_BLEND);
 				techBase->EndPass();
+			}
 		}
 	}
 }

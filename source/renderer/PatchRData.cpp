@@ -1006,12 +1006,12 @@ void CPatchRData::RenderBlends(const std::vector<CPatchRData*>& patches, const C
 			{
 				techBase->BeginPass(pass);
 				TerrainRenderer::PrepareShader(techBase->GetShader(), shadow);
+				
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			}
 				
 			const CShaderProgramPtr& shader = isDummyShader ? dummy : techBase->GetShader(pass);
-			
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				
 			if (itt->m_Texture)
 			{
@@ -1087,7 +1087,10 @@ void CPatchRData::RenderBlends(const std::vector<CPatchRData*>& patches, const C
 			}
 			
 			if (!isDummyShader)
+			{
+				glDisable(GL_BLEND);
 				techBase->EndPass();
+			}
 		}
 	}
 
