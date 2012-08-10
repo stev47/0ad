@@ -43,7 +43,6 @@
 #include <cassert>
 #include <vector>
 #include <limits>
-#include <iterator>
 
 class PSAConvert
 {
