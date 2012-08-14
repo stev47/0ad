@@ -205,6 +205,9 @@ function submitChatInput()
 
 		if (!isCheat)
 		{
+			if (getGUIObjectByName("toggleTeamChat").checked)
+				text = "/team " + text;
+
 			if (g_IsNetworked)
 				Engine.SendNetworkChat(text);
 			else
@@ -226,11 +229,19 @@ function addChatMessage(msg, playerAssignments)
 		playerAssignments = g_PlayerAssignments;
 
 	var playerColor, username;
+
+	// No prefix by default. May be set by parseChatCommands().
+	msg.prefix = "";
+
 	if (playerAssignments[msg.guid])
 	{
 		var n = playerAssignments[msg.guid].player;
 		playerColor = g_Players[n].color.r + " " + g_Players[n].color.g + " " + g_Players[n].color.b;
 		username = escapeText(playerAssignments[msg.guid].name);
+
+		// Parse in-line commands in regular messages.
+		if (msg.type == "message")
+			parseChatCommands(msg, playerAssignments);
 	}
 	else if (msg.type == "defeat" && msg.player)
 	{
@@ -262,8 +273,20 @@ function addChatMessage(msg, playerAssignments)
 		formatted = "[color=\"" + playerColor + "\"]" + username + "[/color] " + verb + " been defeated.";
 		break;
 	case "message":
-		console.write("<" + username + "> " + message);
-		formatted = "<[color=\"" + playerColor + "\"]" + username + "[/color]> " + message;
+		// May have been hidden by the 'team' command.
+		if (msg.hide)
+			return;
+
+		if (msg.action)
+		{
+			console.write(msg.prefix + "* " + username + " " + message);
+			formatted = msg.prefix + "* [color=\"" + playerColor + "\"]" + username + "[/color] " + message;
+		}
+		else
+		{
+			console.write(msg.prefix + "<" + username + "> " + message);
+			formatted = msg.prefix + "<[color=\"" + playerColor + "\"]" + username + "[/color]> " + message;
+		}
 		break;
 	default:
 		error("Invalid chat message '" + uneval(msg) + "'");
@@ -285,4 +308,85 @@ function removeOldChatMessages()
 	chatTimers.shift();
 	chatMessages.shift();
 	getGUIObjectByName("chatText").caption = chatMessages.join("\n");
+}
+
+// Parses chat messages for commands.
+function parseChatCommands(msg, playerAssignments)
+{
+	// Only interested in messages that start with '/'.
+	if (!msg.text || msg.text[0] != '/')
+		return;
+
+	var sender = playerAssignments[msg.guid].player;
+	var recurse = false;
+	var split = msg.text.split(/\s/);
+
+	// Parse commands embedded in the message.
+	switch (split[0])
+	{
+		case "/all":
+			// Resets values that 'team' or 'enemy' may have set.
+			msg.prefix = "";
+			msg.hide = false;
+			recurse = true;
+			break;
+		case "/team":
+			var playerData = getPlayerData();
+			if (hasAllies(sender, playerData))
+			{
+				if (playerData[Engine.GetPlayerID()].team != playerData[sender].team)
+					msg.hide = true;
+				else
+					msg.prefix = "(Team) ";
+			}
+			recurse = true;
+			break;
+		case "/enemy":
+			var playerData = getPlayerData();
+			if (hasAllies(sender, playerData))
+			{
+				if (playerData[Engine.GetPlayerID()].team == playerData[sender].team && sender != Engine.GetPlayerID())
+					msg.hide = true;
+				else
+					msg.prefix = "(Enemy) ";
+			}
+			recurse = true;
+			break;
+		case "/me":
+			msg.action = true;
+			break;
+		case "/msg":
+			var trimmed = msg.text.substr(split[0].length + 1);
+			var matched = "";
+
+			// Reject names which don't match or are a superset of the intended name.
+			for each (var player in playerAssignments)
+				if (trimmed.indexOf(player.name + " ") == 0 && player.name.length > matched.length)
+					matched = player.name;
+
+			// If the local player's name was the longest one matched, show the message.
+			var playerName = g_Players[Engine.GetPlayerID()].name;			
+			if (matched.length && (matched == playerName || sender == Engine.GetPlayerID()))
+			{
+				msg.prefix = "(Private) ";
+				msg.text = trimmed.substr(matched.length + 1);
+				msg.hide = false; // Might override team message hiding.
+				return;
+			}
+			else
+				msg.hide = true;
+			break;
+		default:
+			return;
+	}
+
+	msg.text = msg.text.substr(split[0].length + 1);
+
+	// Hide the message if parsing commands left it empty.
+	if (!msg.text.length)
+		msg.hide = true;
+
+	// Attempt to parse more commands if the current command allows it.
+	if (recurse)
+		parseChatCommands(msg, playerAssignments);
 }

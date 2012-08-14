@@ -60,9 +60,11 @@ MilitaryAttackManager.prototype.init = function(gameState) {
 	// each enemy watchers keeps a list of entity collections about the enemy it watches
 	// It also keeps track of enemy armies, merging/splitting as needed
 	this.enemyWatchers = {};
+	this.ennWatcherIndex = [];
 	for (var i = 1; i <= 8; i++)
 		if (gameState.player != i && gameState.isPlayerEnemy(i)) {
 			this.enemyWatchers[i] = new enemyWatcher(gameState, i);
+			this.ennWatcherIndex.push(i);
 		}
 
 };
@@ -385,7 +387,7 @@ MilitaryAttackManager.prototype.buildDefences = function(gameState, queues){
 	}
 	
 	if (numFortresses + queues.defenceBuilding.totalLength() < 1){ //gameState.getBuildLimits()["Fortress"]) {
-		if (gameState.getTimeElapsed() > 720 * 1000 + numFortresses * 300 * 1000){
+		if (gameState.getTimeElapsed() > 840 * 1000 + numFortresses * 300 * 1000){
 			if (gameState.ai.pathsToMe && gameState.ai.pathsToMe.length > 0){
 				var position = gameState.ai.pathsToMe.shift();
 				// TODO: pick a fort randomly from the list.
@@ -410,7 +412,11 @@ MilitaryAttackManager.prototype.constructTrainingBuildings = function(gameState,
 	//build advanced military buildings
 	if (gameState.getTimeElapsed() > 720*1000){
 		if (queues.militaryBuilding.totalLength() === 0){
-			for (var i in this.bAdvanced){
+			var inConst = 0;
+			for (var i in this.bAdvanced)
+				inConst += gameState.countFoundationsWithType(gameState.applyCiv(this.bAdvanced[i]));
+			if (inConst == 0 && this.bAdvanced !== undefined) {
+				var i = Math.floor(Math.random() * this.bAdvanced.length);
 				if (gameState.countEntitiesAndQueuedByType(gameState.applyCiv(this.bAdvanced[i])) < 1){
 					queues.militaryBuilding.addItem(new BuildingConstructionPlan(gameState, this.bAdvanced[i]));
 				}
@@ -494,13 +500,17 @@ MilitaryAttackManager.prototype.update = function(gameState, queues, events) {
 	
 	//this.trainMilitaryUnits(gameState, queues);
 	
+	Engine.ProfileStart("Constructing military buildings and building defences");
 	this.constructTrainingBuildings(gameState, queues);
 	
 	if(gameState.getTimeElapsed() > 300*1000)
 		this.buildDefences(gameState, queues);
-	
-	for (watcher in this.enemyWatchers)
-		this.enemyWatchers[watcher].detectArmies(gameState,this);
+	Engine.ProfileStop();
+
+	Engine.ProfileStart("Updating enemy watchers");
+	this.enemyWatchers[ this.ennWatcherIndex[gameState.ai.playedTurn % this.ennWatcherIndex.length] ].detectArmies(gameState,this);
+	Engine.ProfileStop();
+
 	this.defenceManager.update(gameState, events, this);
 	
 	/*Engine.ProfileStart("Plan new attacks");

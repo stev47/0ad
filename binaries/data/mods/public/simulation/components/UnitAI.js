@@ -301,9 +301,9 @@ var UnitFsmSpec = {
 			return;
 		}
 
-		// If we can't reach the target, but are standing ground,
-		// then abandon this attack order
-		if (this.GetStance().respondStandGround && !this.order.data.force)
+		// If we can't reach the target, but are standing ground, then abandon this attack order.
+		// Unless we're hunting, that's a special case where we should continue attacking our target.
+		if (this.GetStance().respondStandGround && !this.order.data.force && !this.order.data.hunting)
 		{
 			this.FinishOrder();
 			return;
@@ -328,6 +328,13 @@ var UnitFsmSpec = {
 	"Order.Heal": function(msg) {
 		// Check the target is alive
 		if (!this.TargetIsAlive(this.order.data.target))
+		{
+			this.FinishOrder();
+			return;
+		}
+
+		// Healers can't heal themselves.
+		if (this.order.data.target == this.entity)
 		{
 			this.FinishOrder();
 			return;
@@ -376,7 +383,7 @@ var UnitFsmSpec = {
 				return;
 			}
 
-			this.PushOrderFront("Attack", { "target": this.order.data.target, "force": false });
+			this.PushOrderFront("Attack", { "target": this.order.data.target, "force": false, "hunting": true });
 			return;
 		}
 

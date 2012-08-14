@@ -488,11 +488,16 @@ CityAttack.prototype.StartAttack = function(gameState, militaryManager){
 		}
 		
 		this.unitCollection.move(this.path[0][0], this.path[0][1]);
+		this.unitCollection.setStance("aggressive");	// make sure units won't disperse out of control
+		
+		delete this.pathFinder;
+		
 		debug ("Started to attack with the plan " + this.name);
 		this.state = "walking";
 	} else {
 		gameState.ai.gameFinished = true;
 		debug ("I do not have any target. So I'll just assume I won the game.");
+		delete this.pathFinder;
 		return true;
 	}
 	return true;
@@ -535,11 +540,11 @@ CityAttack.prototype.update = function(gameState, militaryManager, events){
 							// we must assume we've arrived at the end of the trail.
 							this.state = "arrived";
 						}
-						if (militaryManager.enemyWatchers[attacker.owner()]) {
-							toProcess[attacker.id()] = attacker;
-							var armyID = militaryManager.enemyWatchers[attacker.owner()].getArmyFromMember(attacker.id());
-							armyToProcess[armyID[0]] = armyID[1];
-						}
+						//if (militaryManager.enemyWatchers[attacker.owner()]) {
+							//toProcess[attacker.id()] = attacker;
+							//var armyID = militaryManager.enemyWatchers[attacker.owner()].getArmyFromMember(attacker.id());
+							//armyToProcess[armyID[0]] = armyID[1];
+						//}
 					}
 					// if we're being attacked by a building, flee.
 					if (attacker && ourUnit && attacker.hasClass("Structure")) {
